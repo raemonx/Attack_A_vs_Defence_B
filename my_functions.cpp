@@ -224,8 +224,8 @@ int centroids(
 
 						m1 += R;
 
-						mi1 += i * R + 2; // (i moment of mk) = mk * i
-						mj1 += j * R + 2; // (j moment of mk) = mk * j
+						mi1 += i * R ; // (i moment of mk) = mk * i
+						mj1 += j * R ; // (j moment of mk) = mk * j
 
 					}
 					// find GREEN pixels and calculate their centroid
@@ -324,7 +324,7 @@ int centroids(
 //This function calculates the position of both robots and the angle they make with x-axis
 
 		
-int position_angle(double& ic1, double& ic2, double& ic3, double& ic4, double& jc1, double& jc2, double& jc3, double& jc4,
+/*int position_angle(double& ic1, double& ic2, double& ic3, double& ic4, double& jc1, double& jc2, double& jc3, double& jc4,
 	double& x1, double& y1, double& x2, double& y2, double& theta1, double& theta2){
 	x1 = (ic1 + ic2) / 2;
 	y1 = (jc1 + jc2) / 2;
@@ -343,154 +343,195 @@ int position_angle(double& ic1, double& ic2, double& ic3, double& ic4, double& j
 			
 	return 0;
 }
+*/
 
-//This function is used to check whether obstacle is inbetween two robots
+void position_angle(double ic1, double ic2, double ic3, double ic4, double jc1, double jc2, double jc3, double jc4,
+					double &x1, double &y1, double &x2, double &y2, double &theta1, double &theta2)
+{
+	double M_PI = 3.14159;
+	// Calculate centroids
+	x1 = (ic1 + ic2) / 2;
+	y1 = (jc1 + jc2) / 2;
+	x2 = (ic3 + ic4) / 2;
+	y2 = (jc3 + jc4) / 2;
 
-// angles of triangle = obstacle 1/obstacle2 + robot a + robot b
+	// Calculate angles
+	double j1_dif = jc2 - jc1;
+	double i1_dif = ic2 - ic1;
+	theta1 = atan2(j1_dif, i1_dif);
+	if (theta1 < 0)
+	{
+		theta1 += 2 * M_PI;
+	}
+	theta1 = theta1 * 180 / M_PI;
 
-int triangle_angles(double x1, double y1, double x2, double y2, double obs1_ic, double obs1_jc,
-	double obs2_ic, double obs2_jc, double& d_obs1_a, double& d_obs2_a,double& d_obs_a, double& obs_ic,
-	double& obs_jc, double& theta_shoot_gap_abs) {
+	double j2_dif = jc4 - jc3;
+	double i2_dif = ic4 - ic3;
+	theta2 = atan2(j2_dif, i2_dif);
+	if (theta2 < 0)
+	{
+		theta2 += 2 * M_PI;
+	}
+	// This function is used to check whether obstacle is inbetween two robots
 
-	d_obs1_a = sqrt(abs(pow(obs1_ic - x1, 2) + pow(obs1_jc - y1, 2)));
-	d_obs2_a = sqrt(abs(pow(obs2_ic - x1, 2) + pow(obs2_jc - y1, 2)));
-	double theta_obs;
-	if (d_obs1_a < d_obs2_a) {
-		if ((obs1_ic >= 140) && (obs1_ic <= 500) && (obs1_jc <= 140) && (obs1_jc <= 340)) {
-			obs_ic = obs1_ic;
-			obs_jc = obs1_jc;
-			d_obs_a = d_obs1_a;
+	// angles of triangle = obstacle 1/obstacle2 + robot a + robot b
+
+	int triangle_angles(double x1, double y1, double x2, double y2, double obs1_ic, double obs1_jc,
+						double obs2_ic, double obs2_jc, double &d_obs1_a, double &d_obs2_a, double &d_obs_a, double &obs_ic,
+						double &obs_jc, double &theta_shoot_gap_abs)
+	{
+
+		d_obs1_a = sqrt(abs(pow(obs1_ic - x1, 2) + pow(obs1_jc - y1, 2)));
+		d_obs2_a = sqrt(abs(pow(obs2_ic - x1, 2) + pow(obs2_jc - y1, 2)));
+		double theta_obs;
+		if (d_obs1_a < d_obs2_a)
+		{
+			if ((obs1_ic >= 140) && (obs1_ic <= 500) && (obs1_jc <= 140) && (obs1_jc <= 340))
+			{
+				obs_ic = obs1_ic;
+				obs_jc = obs1_jc;
+				d_obs_a = d_obs1_a;
+			}
+			else
+			{
+			}
 		}
-		else {}
-	}
-	else {
-		obs_ic = obs2_ic;
-		obs_jc = obs2_jc;
-		d_obs_a = d_obs2_a;
-	}
-
-	double theta_obs_a, theta_obs_b, theta_shoot_gap;
-	theta_obs_a = (atan2(obs_jc - y1, obs_ic - x1));
-	theta_obs_a = (theta_obs_a * 180 / 3.1415) + (theta_obs_a > 0 ? 0 : 360);
-
-	theta_obs_b = (atan2(obs_jc - y2, obs_ic - x2));
-	theta_obs_b = (theta_obs_b * 180 / 3.1415) + (theta_obs_b > 0 ? 0 : 360);
-
-	theta_shoot_gap = theta_obs_a - theta_obs_b;
-	theta_shoot_gap_abs = abs(theta_shoot_gap);
-
-	return 0;
-
-}
-
-
-//This function is used to check whether obstacle is inbetween two robots
-
-// triangle angles of defence-------------------
-
-int triangle_angles_d(double& x1, double& y1, double& x2, double& y2, double& obs1_ic, double& obs1_jc,
-	double& obs2_ic, double& obs2_jc, double& d_obs1_b, double& d_obs2_b, double& d_obs_b,
-	double& obs_ic, double& obs_jc, double& theta_shoot_gap_abs) {
-
-	d_obs1_b = sqrt(abs(pow(obs1_ic - x2, 2) + pow(obs1_jc - y2, 2)));
-	d_obs2_b = sqrt(abs(pow(obs2_ic - x2, 2) + pow(obs2_jc - y2, 2)));
-	double theta_obs;
-	if (d_obs1_b < d_obs2_b) {
-		if ((obs1_ic >= 140) && (obs1_ic <= 500) && (obs1_jc <= 140) && (obs1_jc <= 340)) {
-			obs_ic = obs1_ic;
-			obs_jc = obs1_jc;
-			d_obs_b = d_obs1_b;
+		else
+		{
+			obs_ic = obs2_ic;
+			obs_jc = obs2_jc;
+			d_obs_a = d_obs2_a;
 		}
-		else {}
+
+		double theta_obs_a, theta_obs_b, theta_shoot_gap;
+		theta_obs_a = (atan2(obs_jc - y1, obs_ic - x1));
+		theta_obs_a = (theta_obs_a * 180 / 3.1415) + (theta_obs_a > 0 ? 0 : 360);
+
+		theta_obs_b = (atan2(obs_jc - y2, obs_ic - x2));
+		theta_obs_b = (theta_obs_b * 180 / 3.1415) + (theta_obs_b > 0 ? 0 : 360);
+
+		theta_shoot_gap = theta_obs_a - theta_obs_b;
+		theta_shoot_gap_abs = abs(theta_shoot_gap);
+
+		return 0;
 	}
-	else {
-		obs_ic = obs2_ic;
-		obs_jc = obs2_jc;
-		d_obs_b = d_obs2_b;
+
+	// This function is used to check whether obstacle is inbetween two robots
+
+	// triangle angles of defence-------------------
+
+	int triangle_angles_d(double &x1, double &y1, double &x2, double &y2, double &obs1_ic, double &obs1_jc,
+						  double &obs2_ic, double &obs2_jc, double &d_obs1_b, double &d_obs2_b, double &d_obs_b,
+						  double &obs_ic, double &obs_jc, double &theta_shoot_gap_abs)
+	{
+
+		d_obs1_b = sqrt(abs(pow(obs1_ic - x2, 2) + pow(obs1_jc - y2, 2)));
+		d_obs2_b = sqrt(abs(pow(obs2_ic - x2, 2) + pow(obs2_jc - y2, 2)));
+		double theta_obs;
+		if (d_obs1_b < d_obs2_b)
+		{
+			if ((obs1_ic >= 140) && (obs1_ic <= 500) && (obs1_jc <= 140) && (obs1_jc <= 340))
+			{
+				obs_ic = obs1_ic;
+				obs_jc = obs1_jc;
+				d_obs_b = d_obs1_b;
+			}
+			else
+			{
+			}
+		}
+		else
+		{
+			obs_ic = obs2_ic;
+			obs_jc = obs2_jc;
+			d_obs_b = d_obs2_b;
+		}
+
+		double theta_obs_a, theta_obs_b, theta_shoot_gap;
+		theta_obs_a = (atan2(obs_jc - y1, obs_ic - x1));
+		theta_obs_a = (theta_obs_a * 180 / 3.1415) + (theta_obs_a > 0 ? 0 : 360);
+
+		theta_obs_b = (atan2(obs_jc - y2, obs_ic - x2));
+		theta_obs_b = (theta_obs_b * 180 / 3.1415) + (theta_obs_b > 0 ? 0 : 360);
+
+		theta_shoot_gap = theta_obs_a - theta_obs_b;
+		theta_shoot_gap_abs = abs(theta_shoot_gap);
+
+		return 0;
 	}
 
-	double theta_obs_a, theta_obs_b, theta_shoot_gap;
-	theta_obs_a = (atan2(obs_jc - y1, obs_ic - x1));
-	theta_obs_a = (theta_obs_a * 180 / 3.1415) + (theta_obs_a > 0 ? 0 : 360);
+	// This function avoid the obstacle by setting up two points at 90 deg and the move towards it once
+	// reaches within a predefined distance
 
-	theta_obs_b = (atan2(obs_jc - y2, obs_ic - x2));
-	theta_obs_b = (theta_obs_b * 180 / 3.1415) + (theta_obs_b > 0 ? 0 : 360);
+	// ==============two point based approach----------------------------
+	int obstacle_avoid(double &g_ic, double &g_jc, double &obs_ic, double &obs_jc, double &d_obs_a,
+					   double &theta1, double &x2, double &y2, double &p1x, double &p1y,
+					   double &p2x, double &p2y, int &pw_r, int &pw_l)
+	{
 
-	theta_shoot_gap = theta_obs_a - theta_obs_b;
-	theta_shoot_gap_abs = abs(theta_shoot_gap);
+		double d_obs, theta_obs;
 
-	return 0;
+		theta_obs = (atan2(obs_jc - g_jc, obs_ic - g_ic));
+		cout << "\n theta_obs = " << theta_obs;
+		// theta_obs = (theta_obs * 180 / 3.1415) + (theta_obs > 0 ? 0 : 360);
+		double c = 250;
 
-}
+		p1x = (d_obs_a / 6) * cos(theta_obs) + c * cos((theta_obs + 1.5708)) + g_ic;
+		p1y = (d_obs_a / 6) * sin(theta_obs) + c * sin((theta_obs + 1.5708)) + g_jc;
 
+		p2x = (d_obs_a / 6) * cos(theta_obs) + c * cos(theta_obs + 4.71239) + g_ic;
+		p2y = (d_obs_a / 6) * sin(theta_obs) + c * sin(theta_obs + 4.71239) + g_jc;
 
-// This function avoid the obstacle by setting up two points at 90 deg and the move towards it once 
-// reaches within a predefined distance
+		double d_p1_b, d_p2_b, pxx, pyy, d_p_b;
 
-// ==============two point based approach----------------------------
-int obstacle_avoid(double& g_ic, double& g_jc, double& obs_ic, double& obs_jc,double& d_obs_a, 
-	double& theta1,double& x2,double& y2, double& p1x,double& p1y,
-	double& p2x, double& p2y, int& pw_r,int& pw_l) {
+		d_p1_b = sqrt(abs(pow(p1x - x2, 2) + pow(p1y - y2, 2)));
+		d_p2_b = sqrt(abs(pow(p2x - x2, 2) + pow(p2y - y2, 2)));
 
+		double d_p1_a, d_p2_a, d_p_a;
+		d_p1_a = sqrt(abs(pow(p1x - g_ic, 2) + pow(p1y - g_jc, 2)));
+		d_p2_a = sqrt(abs(pow(p2x - g_ic, 2) + pow(p2y - g_jc, 2)));
 
-	double d_obs, theta_obs;
+		if (d_p1_b < d_p2_b)
+		{
+			pxx = p1x;
+			pyy = p1y;
+			d_p_b = d_p1_b;
+			d_p_a = d_p1_a;
+		}
+		else
+		{
+			pxx = p2x;
+			pyy = p2y;
+			d_p_b = d_p2_b;
+			d_p_a = d_p2_a;
+		}
+		// cout << "\n d_p_a = " << d_p_a;
+		double theta_p_a, theta_pxx_b_gap, theta_pxx_b_gap_abs;
+		theta_p_a = (atan2(pyy - g_jc, pxx - g_ic));
+		theta_p_a = (theta_p_a * 180 / 3.1415) + (theta_p_a > 0 ? 0 : 360);
 
-	theta_obs = (atan2(obs_jc - g_jc, obs_ic - g_ic));
-	cout << "\n theta_obs = " << theta_obs;
-	//theta_obs = (theta_obs * 180 / 3.1415) + (theta_obs > 0 ? 0 : 360);
-	double c = 250;
+		theta_pxx_b_gap = theta_p_a - theta1;
+		theta_pxx_b_gap_abs = abs(theta_pxx_b_gap);
 
-	p1x = (d_obs_a / 6) * cos(theta_obs) + c * cos((theta_obs + 1.5708)) + g_ic;
-	p1y = (d_obs_a / 6) * sin(theta_obs) + c * sin((theta_obs + 1.5708)) + g_jc;
-
-	p2x = (d_obs_a / 6) * cos(theta_obs) + c * cos(theta_obs + 4.71239) + g_ic;
-	p2y = (d_obs_a / 6) * sin(theta_obs) + c * sin(theta_obs + 4.71239) + g_jc;
-
-	double d_p1_b, d_p2_b, pxx, pyy, d_p_b;
-
-	d_p1_b = sqrt(abs(pow(p1x - x2, 2) + pow(p1y - y2, 2)));
-	d_p2_b = sqrt(abs(pow(p2x - x2, 2) + pow(p2y - y2, 2)));
-
-	double d_p1_a, d_p2_a, d_p_a;
-	d_p1_a = sqrt(abs(pow(p1x - g_ic, 2) + pow(p1y - g_jc, 2)));
-	d_p2_a = sqrt(abs(pow(p2x - g_ic, 2) + pow(p2y - g_jc, 2)));
-
-	if (d_p1_b < d_p2_b) {
-		pxx = p1x;
-		pyy = p1y;
-		d_p_b = d_p1_b;
-		d_p_a = d_p1_a;
-	}
-	else {
-		pxx = p2x;
-		pyy = p2y;
-		d_p_b = d_p2_b;
-		d_p_a = d_p2_a;
-	}
-	//cout << "\n d_p_a = " << d_p_a;
-	double theta_p_a, theta_pxx_b_gap, theta_pxx_b_gap_abs;
-	theta_p_a = (atan2(pyy - g_jc, pxx - g_ic));
-	theta_p_a = (theta_p_a * 180 / 3.1415) + (theta_p_a > 0 ? 0 : 360);
-	 
-	theta_pxx_b_gap = theta_p_a - theta1;
-	theta_pxx_b_gap_abs = abs(theta_pxx_b_gap);
-
-	if ((theta_pxx_b_gap_abs > 7)&&(theta_pxx_b_gap > 0)) {
-		// rotate left
-		pw_l = 2000;
-		pw_r = 2000;
-	}
-	else if ((theta_pxx_b_gap_abs > 7) && (theta_pxx_b_gap < 0)) {
-		// rotate right
-		pw_l = 1000;
-		pw_r = 1000;
-	}
-	else if ( (d_p_a >0)) {
-		// forward
-		pw_l = 1000;
-		pw_r = 2000;
-	}
-	else{}
+		if ((theta_pxx_b_gap_abs > 7) && (theta_pxx_b_gap > 0))
+		{
+			// rotate left
+			pw_l = 2000;
+			pw_r = 2000;
+		}
+		else if ((theta_pxx_b_gap_abs > 7) && (theta_pxx_b_gap < 0))
+		{
+			// rotate right
+			pw_l = 1000;
+			pw_r = 1000;
+		}
+		else if ((d_p_a > 0))
+		{
+			// forward
+			pw_l = 1000;
+			pw_r = 2000;
+		}
+		else{}
 	return 0;
 }
 
