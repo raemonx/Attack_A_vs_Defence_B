@@ -1,0 +1,575 @@
+
+#include <cstdio>
+#include <iostream>
+#include <fstream>
+
+#include <Windows.h>
+
+using namespace std; 
+
+#define KEY(c) ( GetAsyncKeyState((int)(c)) & (SHORT)0x8000 )
+
+#include "image_transfer.h"
+
+// include this header file for computer vision functions
+#include "vision.h"
+
+#include "robot.h"
+
+#include "my_functions.h"
+
+#include "vision_simulation.h"
+
+#include "timer.h"
+
+extern robot_system S1;
+
+int main()
+{
+	double x0, y0, theta0, max_speed, opponent_max_speed;
+	int pw_l, pw_r, pw_laser, laser;
+	double light, light_gradient, light_dir, image_noise;
+	double width1, height1;
+	int N_obs, n_robot;
+	double x_obs[50], y_obs[50], size_obs[50];
+	double D, Lx, Ly, Ax, Ay, alpha_max;
+	double tc, tc0; // clock time
+	//changed clock parameter
+	double t1,t2,dt;
+	int mode, level;
+	int pw_l_o, pw_r_o, pw_laser_o, laser_o;
+	
+	// Red   = r_ic, r_jc
+	double r_ic, r_jc;
+	i2byte R_label;
+
+	// Green = g_ic, g_jc
+	double g_ic, g_jc;
+	i2byte G_label;
+
+	// Yellow = y_ic, y_jc
+	double y_ic, y_jc;
+	i2byte Y_label;
+
+	// Blue = b_ic, b_jc
+	double b_ic, b_jc;
+	i2byte B_label;
+
+	// 2 Obstacles = obs1_ic, obs1_jc, obs2_ic, obs2_jc
+	double obs1_ic, obs1_jc, obs2_ic, obs2_jc;
+
+	// 2 Players plr1_ic, plr1_jc, plr2_ic, plr2_jc
+	double plr1_ic, plr1_jc, plr2_ic, plr2_jc;
+	
+	int tvalue=80;
+	// TODO: it might be better to put this model initialization
+	// section in a separate function
+	
+	// note that the vision simulation library currently
+	// assumes an image size of 640x480
+	width1  = 640;
+	height1 = 480;
+	
+	// number of obstacles
+	N_obs  =2;
+
+	x_obs[1] = 320; // pixels
+	y_obs[1] = 240; // pixels
+	size_obs[1] = 1.0; // scale factor 1.0 = 100% (not implemented yet)	
+
+	x_obs[2] = 80; // pixels
+	y_obs[2] = 80; // pixels
+	size_obs[2] = 1.0; // scale factor 1.0 = 100% (not implemented yet)	
+
+	// set robot model parameters ////////
+	
+	D = 121.0; // distance between front wheels (pixels)
+	
+	// position of laser in local robot coordinates (pixels)
+	// note for Lx, Ly we assume in local coord the robot
+	// is pointing in the x direction		
+	Lx = 31.0;
+	Ly = 0.0;
+	
+	// position of robot axis of rotation halfway between wheels (pixels)
+	// relative to the robot image center in local coordinates
+	Ax = 37.0;
+	Ay = 0.0;
+	
+	alpha_max = 3.14159/2; // max range of laser / gripper (rad)
+	
+	// number of robot (1 - no opponent, 2 - with opponent, 3 - not implemented yet)
+	n_robot = 2;
+	
+	cout << "\npress space key to begin program.";
+	pause();
+
+	// you need to activate the regular vision library before 
+	// activating the vision simulation library
+	activate_vision();
+
+	// note it's assumed that the robot points upware in its bmp file
+	
+	// however, Lx, Ly, Ax, Ay assume robot image has already been
+	// rotated 90 deg so that the robot is pointing in the x-direction
+	// -- ie when specifying these parameters assume the robot
+	// is pointing in the x-direction.
+
+	// note that the robot opponent is not currently implemented in 
+	// the library, but it will be implemented soon.
+
+	activate_simulation(width1,height1,x_obs,y_obs,size_obs,N_obs,
+		"robot_A.bmp","robot_B.bmp","background.bmp","obstacle.bmp",D,Lx,Ly,
+		Ax,Ay,alpha_max,n_robot);	
+
+	// open an output file if needed for testing or plotting
+//	ofstream fout("sim1.txt");
+//	fout << scientific;
+	
+	// set simulation mode (level is currently not implemented)
+	// mode = 0 - single player mode (manual opponent)
+	// mode = 1 - two player mode, player #1
+	// mode = 2 - two player mode, player #2	
+	mode = 0;
+	level = 1;
+	set_simulation_mode(mode,level);	
+	
+	// set robot initial position (pixels) and angle (rad)
+	x0 = 500;
+	y0 = 120;
+	theta0 = 0;
+	set_robot_position(x0,y0,theta0);
+	
+	// set opponent initial position (pixels) and angle (rad)
+	x0 = 200;
+	y0 = 350;
+	theta0 = 3.14159;
+	set_opponent_position(x0,y0,theta0);
+
+	// set initial inputs / on-line adjustable parameters /////////
+
+	// inputs
+	pw_l = 1500; // pulse width for left wheel servo (us)
+	pw_r = 1500; // pulse width for right wheel servo (us)
+	pw_laser = 1500; // pulse width for laser servo (us)
+	laser = 0; // laser input (0 - off, 1 - fire)
+	
+	// paramaters
+	max_speed = 100; // max wheel speed of robot (pixels/s)
+	opponent_max_speed = 100; // max wheel speed of opponent (pixels/s)
+	
+	// lighting parameters (not currently implemented in the library)
+	light = 1.0;
+	light_gradient = 1.0;
+	light_dir = 1.0;
+	image_noise = 1.0;
+
+	// set initial inputs
+	set_inputs(pw_l,pw_r,pw_laser,laser,
+		light,light_gradient,light_dir,image_noise,
+		max_speed,opponent_max_speed);
+
+	// opponent inputs
+	pw_l_o = 1500; // pulse width for left wheel servo (us)
+	pw_r_o = 1500; // pulse width for right wheel servo (us)
+	pw_laser_o = 1500; // pulse width for laser servo (us)
+	laser_o = 0; // laser input (0 - off, 1 - fire)
+
+	// manually set opponent inputs for the simulation
+	// -- good for testing your program
+	set_opponent_inputs(pw_l_o, pw_r_o, pw_laser_o, laser_o, 
+				opponent_max_speed);
+
+	// regular vision program ////////////////////////////////
+	
+	// note that at this point you can write your vision program
+	// exactly as before.
+	
+	// in addition, you can set the robot inputs to move it around
+	// the image and fire the laser.
+	
+	image rgb,rgb0,a,b,label;
+	int nlabels = 10;
+	int height, width;
+
+
+	// measure initial clock time
+	tc0 = high_resolution_time(); 
+	/*double ic1, ic2, ic3, ic4, jc1, jc2, jc3, jc4;
+	double x1, y1, x2, y2, theta, distance, theta1, theta2, theta_gap;
+	double  r_l, g_t, r_t, theta_r, theta_g, theta_x;*/
+    
+	activate(a, b, rgb, rgb0, label, height1, width1);
+
+	acquire_image_sim(rgb);
+
+	image_prep(tvalue, rgb, rgb0, a, b);
+	
+	label_image(a, label, nlabels); // Labelling image for the finding the initial centroid
+/*
+	double r;
+	for (int l = 1; l <= nlabels; l++) {
+
+		int size = 0;
+		label_size(label, l, size);
+		//cout << "\n" << size;
+
+		if (size > 3000) {
+			r = sqrt(size/3.14159);
+
+		//	cout << "\n" << r;
+		}
+	}
+*/
+	// finding the centroid of the lablled images. Please note this is just initial centroid checking
+	centroids(a, rgb, label, nlabels, r_ic, r_jc, g_ic, g_jc, y_ic, y_jc, b_ic, b_jc, obs1_ic, obs1_jc, obs2_ic, obs2_jc, N_obs);
+	
+	/*double obs1_margin_ic, obs1_margin_jc, obs2_margin_ic, obs2_margin_jc;
+
+	obs1_margin_ic = r + obs1_ic;
+	obs1_margin_jc = r + obs1_jc;
+	obs2_margin_ic = r + obs2_ic;
+	obs2_margin_jc = r + obs2_jc;*/
+
+
+
+	//copy(a,rgb);
+
+	/*draw_point_rgb(rgb, r_ic, r_jc, 255, 0, 0);
+	draw_point_rgb(rgb, g_ic, g_jc, 255, 0, 0);
+	draw_point_rgb(rgb, b_ic, b_jc, 255, 0, 0);
+	draw_point_rgb(rgb, y_ic, y_jc, 255, 0, 0);
+	draw_point_rgb(rgb, obs1_ic, obs1_jc, 255, 0, 0);
+	draw_point_rgb(rgb, obs2_ic, obs2_jc, 255, 0, 0);
+	draw_point_rgb(rgb, obs1_margin_ic, obs1_margin_jc, 255, 0, 0);
+
+	view_rgb_image(rgb);
+	pause();*/
+
+	//draw_point_rgb(rgb, obs1_ic, obs1_jc, 255, 0, 0);
+	//draw_point_rgb(rgb, obs2_ic, obs2_jc, 0, 255, 0);
+
+	//view_rgb_image(rgb);
+	//pause();
+
+	while(1) {
+		
+		// simulates the robots and acquires the image from simulation
+		acquire_image_sim(rgb);
+
+		//tc = high_resolution_time() - tc0;
+		t1 = high_resolution_time();
+		//double ic1, ic2, ic3, ic4, jc1, jc2, jc3, jc4;
+		double x1, y1, x2, y2, distance, theta1, theta2, theta_gap, theta, theta_new;
+		double  r_l, g_t, r_t, theta_r, theta_g, theta_x;
+		double d_obs1, d_obs2, theta_obs1, theta_obs2, d_obs1_o, d_obs2_o;
+
+		image_prep(tvalue, rgb, rgb0, a, b);
+		label_image(a, label, nlabels);
+
+		centroids(a, rgb, label, nlabels, r_ic, r_jc, g_ic, g_jc, y_ic, y_jc, b_ic, b_jc,
+			obs1_ic, obs1_jc, obs2_ic, obs2_jc, N_obs);
+		
+		double dpw = 500;
+	//	robot_centroids(rgb, r_ic, g_ic, b_ic, y_ic, r_jc, g_jc, jc3, jc4);
+		position_angle(r_ic, g_ic, b_ic, y_ic, r_jc, g_jc, b_jc, y_jc, x1, y1, x2, y2, theta1, theta2);
+		//relative_angle_distance(x1, y1, x2, y2,theta1, theta, distance, theta_gap);
+		//triangle_distances(r_ic, g_ic, r_jc, g_jc, x2, y2, r_l, g_t, r_t);
+		//obstacle_distances_oppo(obs1_ic, obs1_jc, obs2_ic, obs2_jc, x2, y2, d_obs1_o, d_obs2_o);
+
+		//obstacle_distances(obs1_ic, obs1_jc, obs2_ic, obs2_jc, g_ic, g_jc, d_obs1, d_obs2, theta_obs1, theta_obs2);
+//		double theta_obs1_gap = theta_obs1 - theta1;
+//		double theta_obs2_gap = theta_obs2 - theta1;
+		double p1x, p1y, p2x, p2y;
+
+//		double y_dif = y2 - y1;
+//		double x_dif = x2 - x1;
+		double d_obs1_a, d_obs2_a, d_obs, theta_shoot_gap_abs;
+		double d_obs_a, obs_ic, obs_jc;
+
+
+
+		triangle_angles(x1, y1, x2, y2, obs1_ic, obs1_jc, obs2_ic, obs2_jc,
+			d_obs1_a, d_obs2_a, d_obs_a, obs_ic, obs_jc, theta_shoot_gap_abs);
+
+		//triangle_angles(x1, y1, x2, y2, obs1_ic, obs1_jc, obs2_ic, obs2_jc, d_obs1_a, d_obs2_a, d_obs, theta_shoot_gap_abs);
+//		cout << " theta_shoot_gap_abs = " << theta_shoot_gap_abs;
+//		theta = (atan2(y_dif, x_dif));
+//		theta = (theta * 180 / 3.1415) + (theta > 0 ? 0 : 360);
+//		theta_gap = theta - theta1;
+
+
+//		cout << "\n d_obs1 = " << d_obs1 << "\n d_obs2 = " << d_obs2;
+		double distance_a_b;
+	
+	//--------------call for attack----------------------------------
+	if ((d_obs_a < 200) && (theta_shoot_gap_abs > 140) && (theta_shoot_gap_abs < 220)) {
+
+			obstacle_avoid(g_ic, g_jc, obs_ic, obs_jc, d_obs_a, theta1, y_ic, y_jc,
+				p1x, p1y, p2x, p2y, pw_r, pw_l);
+		}
+		else {
+			control_robot(g_ic, g_jc, x2, y2, theta1, theta_gap, theta,
+				distance_a_b, pw_r, pw_l, laser);
+		}
+
+
+        //-------------------------
+		//draw_point_rgb(rgb, p1x, p1y, 0, 0, 255);
+
+//		draw_point_rgb(rgb, p1x, p1y, 0, 0, 255);
+//		draw_point_rgb(rgb, p2x, p2y, 0, 0, 255);
+		//cout << "\n obs1_ic = " << obs1_ic << " obs2_ic = " << obs2_ic;
+		//cout << "\n r_l = " << r_l << " g_t = " << g_t;
+		//cout << " \nx1= " << x1 << " y1= " << y1 << " theta1= " << theta1 << "  x2= " << x2 << "  y2 = " << y2 << " theta2 = " << theta2;
+		//cout << "\n theta = " << theta << " distance = " << distance<<" theta_gap = "<<theta_gap;
+		//cout << "\n theta1 = " << theta1 << " theta = " << theta << " theta_new = " << theta_new << " theta_gap = " << theta_gap << " distance = " << distance;
+		//cout << "\n d_obs1 = " << d_obs1 << " d_obs2 = " << d_obs2<<" theta_obs1 = " << theta_obs1 <<" theta_obs2 = "<< theta_obs2;
+		//cout << "\n theta_obs1_gap = " << theta_obs1_gap << "\n theta_obs2_gap = " << theta_obs2_gap;
+
+		/* //A robot as defender
+		double obs_ica, obs_jcb, theta_obs_b, pxa,pya,theta_obsa,theta_obs_gapa;
+		complete_defence(obs1_ic, obs1_jc, obs2_ic, obs2_jc, theta1, g_ic, g_jc, y_ic, y_jc,
+			theta_obs_b, d_obs1_o, d_obs2_o, obs_ica, obs_jcb, theta_obsa, theta_obs_gapa, pxa, pya, pw_r, pw_l);
+		draw_point_rgb(rgb, pxa, pya, 255, 0, 0);
+		*/
+
+		
+		/*draw_point_rgb(rgb, r_ic, r_jc, 255, 0, 0);
+		draw_point_rgb(rgb, g_ic, g_jc, 255, 0, 0);
+		draw_point_rgb(rgb, b_ic, b_jc, 255, 0, 0);
+		draw_point_rgb(rgb, y_ic, y_jc, 255, 0, 0);
+		
+		draw_point_rgb(rgb, x1, y1, 0, 0, 255);
+		draw_point_rgb(rgb, x2, y2, 0, 0, 255);
+
+		draw_point_rgb(rgb, obs1_ic, obs1_jc, 0, 0, 255);
+		draw_point_rgb(rgb, obs2_ic, obs2_jc, 0, 0, 255);*/
+		//cout << " \nx1= " << x1 << " y1= " << y1 << " theta1= " << theta1 << "  x2= " << x2 << "  y2 = " << y2 << " theta2 = " << theta2;
+
+		
+		//cout << "\n r_l = " << r_l << " g_t = " << g_t << " r_t = " << r_t;
+		//always initialize your summation variables
+		
+		
+		//------
+		/*
+		ofstream fout("theta.csv");
+		fout << theta<< "," << theta_gap << "\n";
+		}
+
+	    fout.close();
+		*/
+		//------
+
+		//control_robot(theta_gap, theta, distance,rgb, pw_r, pw_l);
+	
+		//control_robot(theta_gap,theta, theta_new, distance, rgb, pw_r, pw_l);
+		
+		
+		
+		// change the inputs to move the robot around
+		// or change some additional parameters (lighting, etc.)
+		
+		// only the following inputs work so far
+		// pw_l -- pulse width of left servo (us) (from 1000 to 2000)
+		// pw_r -- pulse width of right servo (us) (from 1000 to 2000)
+		// pw_laser -- pulse width of laser servo (us) (from 1000 to 2000)
+		// -- 1000 -> -90 deg
+		// -- 1500 -> 0 deg
+		// -- 2000 -> 90 deg
+		// laser -- (0 - laser off, 1 - fire laser for 3 s)
+		// max_speed -- pixels/s for right and left wheels
+		
+		//pw_l = 1000;
+		//pw_r = 2000;
+
+		//Robot A, keyboard controlled
+
+		/*pw_l = 1500;
+		pw_r = 1500;*/
+
+		//// read the keyboard and set the opponent inputs
+		////forward
+		//if( KEY('W') ) {
+		//	pw_l = 1500 - dpw;
+		//	pw_r = 1500 + dpw;
+		//}
+		//////backward	
+		//if( KEY('S') )  {
+		//	pw_l = 1500 + dpw;
+		//	pw_r = 1500 - dpw;
+		//}	
+		//////left
+		//if( KEY('A') ) {
+		//	pw_l = 1500 + dpw;
+		//	pw_r = 1500 + dpw;
+		//}	
+		//////right
+		//if( KEY('D') ) {
+		//	pw_l = 1500 - dpw;
+		//	pw_r = 1500 - dpw;
+		//}
+
+		set_inputs(pw_l,pw_r,pw_laser,laser,
+			light,light_gradient,light_dir,image_noise,
+			max_speed,opponent_max_speed);
+
+		//opponent robot, keyboard controlled
+		
+		//pw_l_o = 1500;
+		//pw_r_o = 1500;
+
+		//move_b(1500, 2000);
+
+		//// read the keyboard and set the opponent inputs
+		////forward
+		//if( KEY('W') ) {
+		//	pw_l_o = 1500 - dpw;
+		//	pw_r_o = 1500 + dpw;
+		//}
+		////backward	
+		//if( KEY('S') )  {
+		//	pw_l_o = 1500 + dpw;
+		//	pw_r_o = 1500 - dpw;
+		//}	
+		////left
+		//if( KEY('A') ) {
+		//	pw_l_o = 1500 + dpw;
+		//	pw_r_o = 1500 + dpw;
+		//}	
+		////right
+		//if( KEY('D') ) {
+		//	pw_l_o = 1500 - dpw;
+		//	pw_r_o = 1500 - dpw;
+		//}
+
+
+		/*if (d_obs1 < 100) {
+			obstacle_collision(obs1_ic, obs1_jc, x2, y2);
+		}
+		else {
+			pw_l_o = 1000;
+			pw_r_o = 2000;
+		}*/
+		/*double theta_gap_o, theta_o, distance_o;
+
+		distance_o = sqrt(pow(r_ic - y_ic, 2) + pow(r_jc - y_jc, 2));
+
+		double R = 60;
+		double control = proportional_control(R, theta2, 20);
+		servo_control(control, pw_l_o, pw_r_o);
+		if ((theta2 > 50) && (theta2 < 70)) {
+			pw_l_o = 1000;
+			pw_r_o = 2000;
+		}
+		else  {}*/
+		//hide(obs1_ic, obs1_jc, obs2_ic, obs2_jc, theta2, y_ic, y_jc, pw_r_o, pw_l_o);
+
+		double theta_obs, theta_obs_gap;
+		double px, py, theta_obs_a;
+		
+		//complete_defence( obs1_ic, obs1_jc, obs2_ic, obs2_jc, theta2, y_ic,
+		//	double& y_jc, double& g_ic, double& g_jc, double& theta_obs_a, double& d_obs1_o,
+		//	double& d_obs2_o, double& obs_ic, double& obs_jc, double& theta_obs, double& theta_obs_gap, double& px, double& py,
+		//	 pw_r_o, pw_l_o);
+		//if ((d_obs1_o < 70)||(d_obs2_o<70)) {
+		//	//move backward
+		//	pw_l_o = 1000;
+		//	pw_r_o = 2000;
+		//	//obstacle_collision(obs1_ic, obs1_jc, x2, y2, pw_l_o, pw_r_o);
+		//}
+		//else{
+		//	complete_defence(obs1_ic, obs1_jc, obs2_ic, obs2_jc, theta2, y_ic, y_jc, r_ic, r_jc, g_ic, g_jc,
+		//		theta_obs_a, d_obs1_o, d_obs2_o, obs_ic, obs_jc, theta_obs, theta_obs_gap, px, py, pw_r_o, pw_l_o);
+		//}
+		 
+		 
+		 
+		double d_obs1_b, d_obs2_b, d_obs_b;
+
+		triangle_angles_d(x2, y2, x1, y1, obs1_ic, obs1_jc, obs2_ic, obs2_jc,
+			d_obs1_b, d_obs2_b, d_obs_b, obs_ic, obs_jc, theta_shoot_gap_abs);
+		cout << "\n d_obs_b = " << d_obs_b;
+		theta_obs_a = (atan2(obs_jc - g_jc, obs_ic - g_ic));
+
+		//double theta_obs_a_deg = (theta_obs_a * 180 / 3.1415) + (theta_obs_a > 0 ? 0 : 360);
+
+		//cout << "\n theta_obs_a = " << theta_obs_a_deg;
+		// setting up point of DEFENCE
+		px = ((cos(theta_obs_a)) * (d_obs_b + 150)) + g_ic;
+		py = ((sin(theta_obs_a)) * (d_obs_b + 150)) + g_jc;
+		draw_point_rgb(rgb, px, py, 255, 255, 255);
+		//	draw_point_rgb(rgb, p2x, p2y, 255, 255, 255);
+		//--------------call for defence function---------------------------
+
+		//double p1x, p1y, p2x, p2y;
+
+		if ((d_obs_b < 135) && (theta_shoot_gap_abs > 0) && (theta_shoot_gap_abs < 100)) {
+			obstacle_avoid_defence(y_ic, y_jc, g_ic, g_jc, theta2, d_obs_b, obs_ic, obs_jc,
+				px, py, p1x, p1y, p2x, p2y, pw_r_o, pw_l_o);
+
+		}
+		else {
+			// u can use x y at place of y,g
+			complete_defence(y_ic, y_jc, g_ic, g_jc, theta2, px, py, pw_r_o, pw_l_o);
+		}
+		//-----------------------------------------------------------
+
+		 
+	 
+
+		//--------------call for defence function---------------------------
+
+
+/*
+		if ((d_obs < 135) && (theta_shoot_gap_abs > 0) && (theta_shoot_gap_abs < 60)) {
+			obstacle_avoid_defence(y_ic, y_jc, g_ic, g_jc, obs1_ic, obs1_jc, obs2_ic, obs2_jc, theta2, x2, y2, 
+				px, py,d_obs1, d_obs2, theta_gap, p1x, p1y, p2x, p2y, pw_r_o, pw_l_o);
+		//	draw_point_rgb(rgb, p1x, p1y, 255, 255, 255);
+		//	draw_point_rgb(rgb, p2x, p2y, 255, 255, 255);
+
+		}
+		else {
+			complete_defence(obs1_ic, obs1_jc, obs2_ic, obs2_jc, theta2, y_ic, y_jc, g_ic, g_jc,
+				theta_obs_a, d_obs1_o, d_obs2_o, obs_ic, obs_jc, theta_obs, theta_obs_gap, px, py, pw_r_o, pw_l_o);
+		}
+
+*/
+		//draw_point_rgb(rgb, px, py, 255, 0, 0);
+		//hide(obs1_ic, obs1_jc, obs2_ic, obs2_jc, theta2, y_ic, y_jc, r_ic, r_jc, d_obs1_o, d_obs2_o,
+		//	d_obs, obs_ic, obs_jc,theta_obs, theta_obs_gap, pw_r_o, pw_l_o);
+//		cout << "\n y_ic = " << y_ic << " y_jc = " << y_jc;
+//		cout << "\n obs_ic = " << obs_ic << " obs_jc = " << obs_jc;
+//		cout << "\n theta_obs_a = " << theta_obs_a;
+		//cout << "\n d_obs = " << d_obs <<" theta_obs = " << theta_obs <<" theta_obs_gap = "<< theta_obs_gap;
+        //cout << "\n theta_obs1_gap = " << theta_obs1_gap << "\n theta_obs2_gap = " << theta_obs2_gap;
+//		cout << "\n px = " << px << "\n py = " << py;
+		//control_robot_defence(x1, y1, x2, y2, theta1, theta2, theta_gap_o, theta_o,
+		//	distance_o, rgb, pw_r_o, pw_l_o);
+//		cout << "\n theta2 = " << theta2 << " theta_o = " << theta_o  << " theta_gap_o = " << theta_gap_o << " distance_o = " << distance_o;
+		tc = high_resolution_time() - tc0;
+		
+		set_opponent_inputs(pw_l_o, pw_r_o, pw_laser_o, laser_o, opponent_max_speed);
+		
+		view_rgb_image(rgb);
+
+		t2 = high_resolution_time();
+		//FPS
+		dt = t2 - t1;
+		//cout << "\n dt = " << dt;
+		
+		Sleep(10);
+	}
+
+	// free the image memory before the program completes
+	free_image(rgb);
+
+	deactivate_vision();
+	
+	deactivate_simulation();	
+	
+	cout << "\ndone.\n";
+
+	return 0;
+}
