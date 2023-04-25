@@ -372,6 +372,7 @@ void position_angle(double ic1, double ic2, double ic3, double ic4, double jc1, 
 	{
 		theta2 += 2 * M_PI;
 	}
+}
 	// This function is used to check whether obstacle is inbetween two robots
 
 	// angles of triangle = obstacle 1/obstacle2 + robot a + robot b
