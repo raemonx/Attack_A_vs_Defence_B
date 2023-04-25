@@ -224,8 +224,8 @@ int centroids(
 
 						m1 += R;
 
-						mi1 += i * R + 1; // (i moment of mk) = mk * i
-						mj1 += j * R + 1; // (j moment of mk) = mk * j
+						mi1 += i * R + 2; // (i moment of mk) = mk * i
+						mj1 += j * R + 2; // (j moment of mk) = mk * j
 
 					}
 					// find GREEN pixels and calculate their centroid
