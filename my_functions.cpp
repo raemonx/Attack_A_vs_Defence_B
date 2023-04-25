@@ -177,7 +177,6 @@ int centroids(
 
 	for (int n = 1; n <= nlabels; n++) {
 
-		label_size(label, n, N);
 
 		
 		int k, lbl;
