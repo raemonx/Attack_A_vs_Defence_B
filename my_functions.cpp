@@ -392,9 +392,6 @@ void position_angle(double ic1, double ic2, double ic3, double ic4, double jc1, 
 				obs_jc = obs1_jc;
 				d_obs_a = d_obs1_a;
 			}
-			else
-			{
-			}
 		}
 		else
 		{
@@ -437,8 +434,7 @@ void position_angle(double ic1, double ic2, double ic3, double ic4, double jc1, 
 				d_obs_b = d_obs1_b;
 			}
 			else
-			{
-			}
+			
 		}
 		else
 		{
