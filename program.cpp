@@ -62,11 +62,9 @@ int main()
 	double plr1_ic, plr1_jc, plr2_ic, plr2_jc;
 	
 	int tvalue=80;
-	// TODO: it might be better to put this model initialization
-	// section in a separate function
+
+	// default window size
 	
-	// note that the vision simulation library currently
-	// assumes an image size of 640x480
 	width1  = 640;
 	height1 = 480;
 	
@@ -83,7 +81,7 @@ int main()
 
 	// set robot model parameters ////////
 	
-	D = 121.0; // distance between front wheels (pixels)
+	D = 120.0; // distance between front wheels 
 	
 	// position of laser in local robot coordinates (pixels)
 	// note for Lx, Ly we assume in local coord the robot
