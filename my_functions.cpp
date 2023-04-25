@@ -168,8 +168,6 @@ int centroids(
 	double eps = 1.0e-10;
 	mi1 = mj1 = mi2 = mj2 = mi3 = mj3 = mi4 = mj4 = m1 = m2 = m3 = m4 = 0.0;
 	
-	
-// function prototypes for user defined functions
 
 
 
@@ -177,8 +175,6 @@ int centroids(
 
 	for (int n = 1; n <= nlabels; n++) {
 
-
-		
 		int k, lbl;
 		int h, w; // ints are 4 bytes on the PC
 		i2byte* pl; // pointer to the label image
@@ -228,8 +224,8 @@ int centroids(
 
 						m1 += R;
 
-						mi1 += i * R; // (i moment of mk) = mk * i
-						mj1 += j * R; // (j moment of mk) = mk * j
+						mi1 += i * R + 1; // (i moment of mk) = mk * i
+						mj1 += j * R  + 1; // (j moment of mk) = mk * j
 
 					}
 					// find GREEN pixels and calculate their centroid
